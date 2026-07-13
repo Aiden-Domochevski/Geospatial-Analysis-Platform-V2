@@ -57,11 +57,6 @@ This standalone app provides the exact same Data Enrichment interface as the one
 - Real-time terminal output streaming
 - The Clean & Merge pipeline (Step A: clean raw CSV, Step B: merge all data sources and deduplicate)
 
-**Additional scraper dependencies:**
-```bash
-pip install selenium webdriver-manager colorama
-```
-
 ## Project Structure
 
 ```
