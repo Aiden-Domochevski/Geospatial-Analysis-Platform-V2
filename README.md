@@ -7,7 +7,7 @@ This repository contains the source code for the machine learning pipeline and t
 ## Prerequisites
 
 To run this project, you need:
-- Python 3.9+
+- **Python 3.14.3** (This exact version is recommended to ensure full compatibility with the generated dependencies).
 - A virtual environment (recommended)
 
 ## Setup Instructions
