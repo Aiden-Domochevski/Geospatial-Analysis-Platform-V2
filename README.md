@@ -2,6 +2,13 @@
 
 This repository contains the source code for the machine learning pipeline and the interactive Streamlit dashboard developed for the territorial intelligence and site selection project at Attijariwafa Bank.
 
+## Project Overview
+
+The objective of this platform is to leverage spatial data, machine learning, and geographic points of interest (POIs) to optimize Attijariwafa Bank's physical branch network. The platform provides a suite of interactive, data-driven tools for:
+- **Site Selection**: Predicting the success and expected revenue of a potential new branch location based on surrounding infrastructure and competitor density.
+- **Network Optimization**: Automatically identifying redundant, highly overlapping, or underperforming branches that should be merged or closed to maximize overall ROI.
+- **Territorial Intelligence**: Segmenting existing branches using ML clustering to understand geographic performance drivers across different cities and regions.
+
 **Note:** For data privacy and size constraints, the actual datasets have been excluded from this repository. You must download them separately via the provided Google Drive link below. The `data/` directory structure itself is preserved for your convenience.
 
 ## Prerequisites
