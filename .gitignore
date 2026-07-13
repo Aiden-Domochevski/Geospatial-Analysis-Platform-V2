@@ -10,25 +10,6 @@ data/
 *.csv
 *.json
 
-# Documentation and Reports
-documentation/
-rapport.tex
-*.pdf
-*.log
-*.aux
-*.out
-*.gz
-
-# Images and Figures
-*.png
-*.jpg
-*.jpeg
-*.svg
-
-# Notebooks
-notebooks/
-*.ipynb
-
 # OS generated files
 .DS_Store
 Thumbs.db

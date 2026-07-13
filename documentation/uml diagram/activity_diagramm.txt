@@ -1,0 +1,87 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1565C0
+skinparam ActivityDiamondBackgroundColor #FFF9C4
+skinparam ActivityDiamondBorderColor #FBC02D
+skinparam ArrowColor #1565C0
+
+title Diagramme d'Activité - Plateforme d'Intelligence Territoriale
+
+start
+
+partition "1. Ingestion et Préparation des Données" {
+    fork
+        :Charger données agences existantes;
+    fork again
+        :Charger données financières (Revenus);
+    fork again
+        :Charger Densité de Population;
+    fork again
+        :Extraction des points d'intérêt;
+    end fork
+    
+    :Nettoyage et Déduplication des POI;
+    :Classification des POI (Commercial, Bureau, etc.);
+}
+
+partition "2. Scoring et Analyse du Réseau Existant" {
+    :Calcul des scores d'attractivité territoriale;
+    :Calcul du Score Composite;
+    :Segmentation des agences (Identification des Profils);
+    
+    if (Mode "Optimisation du Réseau" activé ?) then (Oui)
+        partition "3. Optimisation Stratégique (Matrice BCG)" {
+            :Entraînement du modèle d'évaluation;
+            :Prédiction du Revenu Attendu;
+            :Calcul du Ratio de Performance (Réel / Attendu);
+            
+            if (Ratio > 1.15 et Fort Potentiel ?) then (Oui)
+                :Action = FLAGSHIP;
+            elseif (Ratio < 0.85 et Fort Potentiel ?) then (Oui)
+                :Action = REVIEW / INVEST;
+            elseif (Ratio > 1.15 et Faible Potentiel ?) then (Oui)
+                :Action = MONITOR;
+            else (Sinon)
+                :Action = CLOSE;
+            endif
+            
+            if (Action == CLOSE ou REVIEW ?) then (Oui)
+                :Recherche spatiale de proximité;
+                if (Agence FLAGSHIP à proximité ?) then (Oui)
+                    :Modifier Action = MERGE;
+                else (Non)
+                endif
+            else (Non)
+            endif
+        }
+    else (Non)
+    endif
+}
+
+partition "4. Sélection de Nouveaux Sites" {
+    :Génération de la grille de candidats (Maroc);
+    :Filtrage Spatial (Côtes, Zones vides, Éloignement);
+    :Évaluation de l'attractivité locale;
+    :Évaluation de la densité démographique;
+    
+    :Sélection des agences de référence (Top 10%);
+    :Comparaison des profils (Candidats vs Références);
+    
+    :Modélisation prédictive du potentiel financier;
+    
+    :Calcul du Score Combiné Pondéré;
+    :Filtrage des Contraintes (Max 2/ville, min 700m);
+    :Sélection du TOP 20;
+}
+
+partition "5. Restitution (Dashboard)" {
+    :Génération des cartes interactives;
+    :Génération des visualisations analytiques;
+    :Mise à jour du tableau de bord;
+}
+
+:Téléchargement des résultats (CSV/JSON);
+
+stop
+@enduml

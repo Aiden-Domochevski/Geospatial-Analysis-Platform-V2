@@ -1,0 +1,76 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor #FFFFFF
+    ParticipantBorderColor black
+    ParticipantBackgroundColor white
+    LifeLineBorderThickness 2.5
+}
+skinparam actorStyle stickman
+skinparam ActorBorderColor black
+skinparam ActorBackgroundColor white
+skinparam ParticipantBorderThickness 2.5
+skinparam roundCorner 0
+
+title Diagramme de Séquence -
+
+actor "Utilisateur" as User
+
+participant "Dashboard\n(Streamlit)" as Dash #3B82F6
+participant "Chargeur de\nDonnées" as Loader #22C55E
+participant "Pipeline de\nClustering" as Cluster #8B5CF6
+participant "Processeur\nPOI" as POI #EF4444
+participant "Générateur de\nGrille" as Grid #EC4899
+participant "Calculateur de\nSimilarité" as Sim #F97316
+participant "Sélecteur de\nSites" as Select #EA580C
+hide footbox
+== Étape 1: Upload des fichiers ==
+
+User -> Dash: 1. Accéder à l'onglet\n"Run Site Selection"
+Dash --> User: 2. Afficher formulaire\nd'upload et paramètres
+User -> Dash: 3. Uploader 4 fichiers CSV\n(branches_scored,\nbranch_performance,\nmerged_data_clean,\ndensity)
+Dash --> User: 4. Confirmer upload\nréussi
+
+== Étape 2: Configuration des paramètres ==
+
+User -> Dash: 5. Configurer paramètres:\n- Nombre de clusters (8)\n- Poids POI et Population\n- Espacement grille (0.7km)\n- Max par ville (2)\n- Distance min (0.7km)
+Dash --> User: 6. Afficher résumé\ndes paramètres
+
+== Étape 3: Exécution du modèle ==
+
+User -> Dash: 7. Cliquer "Run Site\nSelection Model"
+Dash -> Dash: 8. Afficher barre\nde progression
+Dash -> Loader: 9. Charger les données\ndes agences
+Loader --> Dash: 10. Retourner DataFrame\nagences scorées
+Dash -> Loader: 11. Intégrer les données\nde performance
+Loader --> Dash: 12. Retourner DataFrame\nfusionné
+Dash -> Cluster: 13. Segmenter le réseau\n(selon les paramètres)
+Cluster --> Dash: 14. Retourner labels\nde clusters
+Dash -> Cluster: 15. Identifier les agences\nde référence
+Cluster --> Dash: 16. Retourner benchmark\n(meilleures agences)
+Dash -> POI: 17. Charger les points\nd'intérêt territoriaux
+POI --> Dash: 18. Retourner POI\nclassifiés
+Dash -> Grid: 19. Générer la grille\nterritoriale
+Grid --> Dash: 20. Retourner points\nvalidés (côte)
+Dash -> POI: 21. Évaluer l'attractivité\nlocale des candidats
+POI --> Dash: 22. Retourner scores POI\net compteurs
+Dash -> POI: 22b. Associer la densité\ndémographique locale
+POI --> Dash: 22c. Retourner scores\nde population normés
+Dash -> Sim: 23. Comparer les profils\ndes candidats aux références
+Sim --> Dash: 24. Retourner similarités\net revenus prédits
+Dash -> Select: 25. Calculer le potentiel\nglobal (selon les pondérations)
+Select --> Dash: 26. Retourner scores\ncombinés
+Dash -> Select: 27. Sélectionner les\nmeilleurs sites
+Select --> Dash: 28. Retourner top 20\nsites recommandés
+
+== Étape 4: Affichage des résultats ==
+
+Dash --> User: 29. Afficher carte\ninteractive
+Dash --> User: 30. Afficher graphiques\n(barres, camemberts)
+Dash --> User: 31. Afficher KPIs\n(méthode, clusters,\ncandidats, revenu top)
+Dash --> User: 32. Afficher paramètres\nde diversité géographique
+Dash --> User: 33. Proposer boutons\nde téléchargement CSV/JSON
+
+@enduml

@@ -1,0 +1,57 @@
+@startuml
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam actorStyle stickman
+
+title Diagramme des Cas d'Utilisation - Plateforme d'Intelligence Territoriale
+
+actor "Responsable Réseau\n(Principal Actor)" as RS
+actor "Data Scientist" as DS
+actor "Administrateur Système" as AS
+
+rectangle "Plateforme d'Intelligence Territoriale" {
+    
+    usecase "Consulter le tableau\nde bord interactif" as UC1
+    usecase "Filtrer les agences\npar critères" as UC2
+    usecase "Visualiser les agences\nsur carte interactive" as UC3
+    usecase "Télécharger les\nrésultats (CSV)" as UC4
+    
+    usecase "Exécuter la sélection\nde nouveaux sites" as UC5
+    usecase "Configurer les\nparamètres du modèle" as UC6
+    usecase "Charger les données\nsources" as UC7
+    
+    usecase "Gérer les sources\nde données POI" as UC8
+    usecase "Superviser les\ntraitements" as UC9
+    usecase "Maintenance et\névolution du système" as UC10
+    
+    usecase "Explorer les clusters\nd'agences" as UC11
+    usecase "Analyser les scores\ndes agences" as UC12
+    usecase "Comparer les sites\ncandidats" as UC13
+    usecase "Optimiser le réseau\nd'agences" as UC14
+}
+
+RS --> UC1
+RS --> UC2
+RS --> UC3
+RS --> UC4
+RS --> UC11
+RS --> UC12
+RS --> UC13
+RS --> UC14
+
+DS --> UC5
+DS --> UC6
+DS --> UC7
+DS --> UC8
+DS --> UC9
+DS --> UC11
+DS --> UC12
+
+AS --> UC8
+AS --> UC9
+AS --> UC10
+
+UC5 ..> UC6 : <<include>>
+UC5 ..> UC7 : <<include>>
+UC9 ..> UC8 : <<include>>
+@enduml
