@@ -15,7 +15,7 @@ The objective of this platform is to leverage spatial data, machine learning, an
 
 To run this project, you need:
 - **Python 3.14.3**: You can download this specific version from [here](https://www.npackd.org/p/org.python.Python64/3.14.3). This exact version is recommended to ensure full compatibility with the generated dependencies.
-- **Google Chrome** (required only if you want to use the Google Maps scraper)
+- **Google Chrome**: You can download it from [here](https://www.google.com/chrome/) (required only if you want to use the Google Maps scraper)
 - A virtual environment (recommended)
 
 ## Setup Instructions
