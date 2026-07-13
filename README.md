@@ -7,7 +7,7 @@ This repository contains the source code for the machine learning pipeline and t
 ## Prerequisites
 
 To run this project, you need:
-- **Python 3.14.3** (This exact version is recommended to ensure full compatibility with the generated dependencies).
+- **Python 3.14.3**: You can download this specific version from [here](https://www.npackd.org/p/org.python.Python64/3.14.3). This exact version is recommended to ensure full compatibility with the generated dependencies.
 - A virtual environment (recommended)
 
 ## Setup Instructions
@@ -29,7 +29,7 @@ To run this project, you need:
    The datasets are not stored directly in this GitHub repository due to file size and privacy constraints. The required folder structure (`data/inputs/` and `data/outputs/`) is already created for you in the repository.
    
    - **Download the Data:** Get the required files from this [Google Drive Link](https://drive.google.com/drive/folders/1IeePZw1w69xwTbbwtLAFhFw98pY6EcfH?usp=sharing).
-   - **Extract/Move the Data:** Place the downloaded files directly into the pre-existing `data/` folder exactly as they are arranged in the Drive. For example, `merged_data_clean.csv` must go inside `data/inputs/`.
+   - **Extract/Move the Data:** **Important:** ALL the downloaded data files must be placed directly into the pre-existing `data/inputs/` directory. Do not place them in the root `data/` folder or `data/outputs/`.
 
 4. **Run the Dashboard:**
    Once the data is in place, you can launch the dashboard locally:
