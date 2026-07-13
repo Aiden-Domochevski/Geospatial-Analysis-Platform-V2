@@ -1,0 +1,239 @@
+# Part 2: Benchmarking + BCG + UC2 + Deployment
+PART2 = r"""
+\subsection{Benchmarking Algorithmique : Prédiction des Revenus (Régression)}
+
+Pour évaluer objectivement le potentiel théorique d'une agence, nous modélisons un problème de régression supervisée où la variable cible $Y$ est le revenu mensuel réel (en MAD), et la matrice $X$ contient les 6 scores spatiaux normalisés. L'ensemble de données ($N = 1\,198$) est partitionné en un ensemble d'entraînement (80\%) et un ensemble de test (20\%) via un échantillonnage stratifié (\texttt{random\_state=42}).
+
+Afin de justifier scientifiquement notre choix de modèle final, nous avons conduit un benchmarking rigoureux de quatre architectures algorithmiques, couvrant le spectre complet des paradigmes de Machine Learning.
+
+\subsubsection{Analyse de la Variable Cible}
+
+La distribution du revenu mensuel des agences (figure~\ref{fig:revenue_dist}) présente une structure bimodale avec une concentration significative autour de 12\,000\,000 MAD et une queue de distribution vers les revenus plus faibles. La moyenne s'établit à \textbf{8\,385\,199 MAD} et la médiane à \textbf{11\,971\,900 MAD}. Cette asymétrie justifie l'utilisation de métriques robustes (MAE) en complément du RMSE.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/revenue_distribution.png}
+    \caption{Distribution de la variable cible (revenu mensuel en MAD). La structure bimodale reflète la dualité entre agences urbaines performantes et agences rurales à faible activité.}
+    \label{fig:revenue_dist}
+\end{figure}
+
+\subsubsection{Modèle 1 : Régression Linéaire par Moindres Carrés Ordinaires (OLS)}
+
+Le modèle OLS constitue notre ligne de base (\textit{baseline}). Il estime un hyperplan dans $\mathbb{R}^6$ minimisant la somme des carrés des résidus. Bien que théoriquement optimal sous les hypothèses de Gauss-Markov (homoscédasticité, indépendance, normalité des résidus), ces conditions sont rarement satisfaites dans un contexte géospatial où les interactions entre variables sont hautement non-linéaires.
+
+\subsubsection{Modèle 2 : Régression Ridge ($L_2$)}
+
+La régression Ridge ajoute une pénalité de norme $L_2$ au terme de perte OLS :
+\begin{equation}
+\mathcal{L}_{Ridge} = \sum_{i=1}^{N} (y_i - \hat{y}_i)^2 + \lambda \sum_{j=1}^{p} \beta_j^2
+\end{equation}
+Le terme de régularisation $\lambda$ réduit la variance des coefficients en les contraignant vers zéro, sans les annuler. Avec $\lambda = 1.0$, ce modèle vise à améliorer la généralisation par rapport à l'OLS en réduisant le surapprentissage.
+
+\subsubsection{Modèle 3 : Random Forest (Bagging d'Arbres de Décision)}
+
+Le Random Forest agrège $B = 100$ arbres de décision profonds, chacun entraîné sur un échantillon bootstrap distinct du dataset. Contrairement aux modèles linéaires, cette architecture capture nativement les interactions non-linéaires (ex: ``le revenu explose uniquement si le score commercial $> 0.5$ ET la cannibalisation $< 0.2$''). La décorrélation des arbres (via la sélection aléatoire de $\sqrt{p}$ variables à chaque nœud) réduit la variance de l'estimateur sans augmenter le biais.
+
+\subsubsection{Modèle 4 : XGBoost (Extreme Gradient Boosting)}
+
+XGBoost construit ses arbres de manière séquentielle. À l'itération $t$, le nouvel arbre $f_t$ est mathématiquement entraîné pour prédire le résidu d'erreur (gradient de la fonction de perte) des arbres précédents. L'utilisation de l'approximation de Taylor au second ordre (calcul du Hessien) permet une convergence optimale. La régularisation intégrée ($L_1$ et $L_2$ sur les poids des feuilles) confère une robustesse supérieure face aux valeurs aberrantes.
+
+Paramètres utilisés : \texttt{n\_estimators=100}, \texttt{max\_depth=4}, \texttt{random\_state=42}.
+
+\subsubsection{Résultats Comparatifs}
+
+Le tableau~\ref{tab:reg_benchmark} présente les résultats empiriques des quatre modèles sur l'ensemble de test :
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Modèle} & \textbf{RMSE (MAD)} & \textbf{MAE (MAD)} & \textbf{$R^2$} \\ \hline
+Régression OLS & 1\,605\,040 & 1\,060\,711 & 0.8658 \\ \hline
+Régression Ridge ($\lambda=1$) & 1\,604\,985 & 1\,060\,934 & 0.8658 \\ \hline
+Random Forest ($B=100$) & \textbf{1\,493\,490} & \textbf{896\,600} & \textbf{0.8838} \\ \hline
+XGBoost ($T=100$, $d=4$) & 1\,620\,616 & 984\,600 & 0.8632 \\ \hline
+\end{tabular}
+\caption{Benchmark comparatif des 4 modèles de régression. Les valeurs en gras indiquent les meilleures performances.}
+\label{tab:reg_benchmark}
+\end{table}
+
+\textbf{Analyse des résultats :} Les modèles linéaires (OLS et Ridge) obtiennent des performances quasi-identiques ($R^2 = 0.8658$), suggérant que la multicolinéarité entre nos variables n'est pas un facteur limitant. Le Random Forest surpasse tous les modèles avec un $R^2$ de \textbf{0.8838} et un MAE réduit de 15.5\% par rapport à l'OLS. XGBoost, bien que légèrement en retrait en $R^2$ pur (0.8632), reste notre choix d'implémentation finale pour deux raisons : (1) sa capacité native à fournir un score d'importance des variables directement exploitable dans le dashboard, et (2) sa rapidité d'inférence en production grâce à l'optimisation SIMD.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/regression_benchmark.png}
+    \caption{Nuages de points (Actual vs Predicted) pour les 4 modèles de régression. La ligne rouge ($y=x$) représente la prédiction parfaite. On observe la nette amélioration de la concentration autour de cette diagonale pour les modèles arborescents.}
+    \label{fig:reg_scatter}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/xgboost_importance.png}
+    \caption{Importance des caractéristiques spatiales selon XGBoost (gain moyen). Le score commercial s'avère être le prédicteur dominant du revenu d'une agence.}
+    \label{fig:feature_importance}
+\end{figure}
+
+\subsection{Benchmarking Algorithmique : Classification Multi-Classes}
+
+En parallèle de la régression, nous avons modélisé le problème sous forme de classification. Chaque agence est assignée à l'une des trois classes d'action stratégique : \textbf{KEEP} (revenu $> 11\,000\,000$ MAD), \textbf{REVIEW} (revenu entre 6\,000\,000 et 11\,000\,000 MAD), ou \textbf{CLOSE} (revenu $< 6\,000\,000$ MAD). Ces seuils reflètent les contraintes opérationnelles de rentabilité du réseau bancaire.
+
+\subsubsection{Modèles Évalués}
+
+Quatre algorithmes de classification ont été entraînés et évalués :
+\begin{enumerate}
+    \item \textbf{Régression Logistique} (\texttt{max\_iter=1000}) : Extension multi-classe du modèle logit via la stratégie One-vs-Rest.
+    \item \textbf{K-Nearest Neighbors} ($K=5$) : Classification par vote majoritaire des 5 plus proches voisins dans l'espace standardisé.
+    \item \textbf{Random Forest Classifier} ($B=100$) : Forêt aléatoire adaptée à la classification par vote d'arbres.
+    \item \textbf{XGBoost Classifier} ($T=100$, $d=4$) : Gradient boosting avec fonction de perte \textit{multi:softmax}.
+\end{enumerate}
+
+\subsubsection{Résultats et Matrices de Confusion}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|}
+\hline
+\textbf{Modèle} & \textbf{Accuracy} \\ \hline
+Régression Logistique & 82.92\% \\ \hline
+K-Nearest Neighbors & 81.25\% \\ \hline
+Random Forest Classifier & 81.67\% \\ \hline
+XGBoost Classifier & 82.08\% \\ \hline
+\end{tabular}
+\caption{Précision globale (Accuracy) des 4 modèles de classification multi-classes.}
+\label{tab:clf_benchmark}
+\end{table}
+
+L'analyse des matrices de confusion (figure~\ref{fig:confusion_matrices}) révèle que l'ensemble des modèles présentent une précision globale supérieure à 81\%, avec la Régression Logistique en tête à \textbf{82.92\%}. Les erreurs de classification se concentrent principalement sur la classe \texttt{REVIEW}, zone de transition naturelle entre les deux extrêmes. Les classes \texttt{KEEP} et \texttt{CLOSE}, plus polarisées, sont identifiées avec une fiabilité supérieure.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/classification_benchmark.png}
+    \caption{Matrices de confusion des 4 modèles de classification. Chaque cellule indique le nombre d'agences classées dans chaque catégorie (Réel vs Prédit).}
+    \label{fig:confusion_matrices}
+\end{figure}
+
+\subsection{La Matrice BCG Spatiale et l'Analyse des Écarts (Gap Analysis)}
+
+La finalité de l'UC1 n'est pas simplement d'obtenir un modèle de prédiction performant, mais d'exploiter les \textit{résidus} du modèle comme outil de diagnostic stratégique. C'est le principe de la \textbf{Gap Analysis} (Analyse des Écarts).
+
+\subsubsection{Principe Fondamental}
+
+Soit $\hat{Y}_i$ le revenu potentiel prédit par XGBoost (reflétant exclusivement la qualité géographique de l'emplacement) et $Y_i$ le revenu réel observé (reflétant la combinaison emplacement + management). L'espace bidimensionnel $(X = \hat{Y}_i, Y = Y_i)$ constitue notre Matrice BCG adaptée au secteur bancaire.
+
+\subsubsection{Lignes de Potentiel et Définition des Quadrants}
+
+Le plan est divisé par deux lignes critiques dont l'intersection crée quatre quadrants stratégiques :
+\begin{enumerate}
+    \item \textbf{La médiane des prédictions (Ligne Verticale)} : sépare les zones géographiquement pauvres (à gauche) des zones riches en potentiel (à droite). Calculée à la valeur médiane des sorties XGBoost.
+    \item \textbf{La médiane des revenus réels (Ligne Horizontale)} : sépare les agences en sous-performance brute (en bas) des agences très rentables (en haut).
+\end{enumerate}
+
+Les quatre quadrants résultants sont :
+\begin{itemize}
+    \item \textbf{FLAGSHIP (Haut-Droite)} : 514 agences (42.9\%). Potentiel élevé ET performance élevée. Les agences modèles du réseau.
+    \item \textbf{REVIEW / INVEST (Bas-Droite)} : 86 agences (7.2\%). Anomalie critique : le quartier est excellent mais l'agence sous-performe. Action de management, d'audit ou de refonte marketing prioritaire.
+    \item \textbf{MONITOR (Haut-Gauche)} : 85 agences (7.1\%). Le quartier a un faible potentiel, mais l'équipe surperforme. Félicitation sans investissement lourd.
+    \item \textbf{CLOSE (Bas-Gauche)} : 513 agences (42.8\%). Potentiel inexistant et revenus catastrophiques. Cibles premières d'un plan de fermeture ou de délocalisation.
+\end{itemize}
+
+\subsubsection{La Ligne d'Espérance de Potentiel (Diagonale $y = x$)}
+
+L'élément analytique le plus puissant de la matrice est la \textbf{diagonale parfaite} définie par $y = x$, où le revenu réel égale exactement le revenu prédit. Cette ligne représente l'\textit{Espérance de Potentiel} : si une agence se situe sur cette diagonale, sa rentabilité est parfaitement alignée avec le potentiel de son emplacement. Le travail managérial correspond à 100\% aux attentes du modèle.
+
+Toute déviation au-dessus de la diagonale ($Y_i > \hat{Y}_i$) caractérise une \textit{sur-performance} : l'équipe crée de la valeur au-delà de ce que la localisation permettrait naturellement. Inversement, une position sous la diagonale ($Y_i < \hat{Y}_i$) signale une \textit{destruction de valeur} latente.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/bcg_matrix.png}
+    \caption{Matrice BCG Spatiale : chaque point représente une agence. L'axe X est le potentiel prédit par XGBoost, l'axe Y le revenu réel. Les lignes médianes délimitent les 4 quadrants. La diagonale noire ($y=x$) représente la ligne d'espérance de potentiel.}
+    \label{fig:bcg_matrix}
+\end{figure}
+
+\subsection{Optimisation par Fusion : Détection de Cannibalisation via cKDTree}
+
+En complément de l'analyse financière, le système optimise le réseau par la détection des redondances physiques. Deux agences situées à moins de 1.2 km l'une de l'autre se cannibalisent mutuellement en se disputant le même bassin de clientèle.
+
+L'évaluation naïve de toutes les paires de distances entre $N$ agences présente une complexité de $O(N^2)$, inadaptée pour une interface temps réel. Nous avons implémenté l'algorithme des Arbres k-dimensionnels via \texttt{scipy.spatial.cKDTree} (implémenté en C++). L'arbre partitionne l'espace $\mathbb{R}^2$ récursivement via des hyperplans. La fonction \texttt{query\_pairs(r=0.012)} (où 0.012 degrés $\approx$ 1.2 km) exploite l'élagage spatial (\textit{pruning}) pour identifier instantanément les paires cannibales en $O(N \log N)$.
+
+Les paires détectées appartenant aux quadrants REVIEW ou CLOSE de la matrice BCG sont automatiquement proposées comme candidates à une opération de fusion-acquisition interne.
+
+%=============================================================================%
+\section{Cas d'Usage 2 : Sélection de Nouveaux Sites (Site Selection)}
+%=============================================================================%
+
+Le second cas d'usage se tourne vers la conquête spatiale : identifier les emplacements vierges présentant le plus fort potentiel pour l'ouverture de nouvelles agences.
+
+\subsection{Maillage du Territoire et Filtrage Vectorisé}
+
+L'algorithme génère un maillage de points candidats sur l'étendue des grandes métropoles marocaines (un point tous les 500 mètres). Chaque point virtuel subit le même processus d'agrégation radiale que dans l'UC1, produisant un vecteur spatial $C_j \in \mathbb{R}^6$ identique en structure à celui des agences existantes.
+
+Afin de respecter les contraintes opérationnelles de la banque, un filtrage vectorisé (optimisé via \texttt{pandas}) est appliqué en amont :
+\begin{itemize}
+    \item Exclusion des zones à densité de population insuffisante (seuil paramétrable).
+    \item Exclusion stricte des candidats situés à moins d'une distance $D$ (réglable par l'utilisateur via un slider) d'une agence Attijariwafa existante, appliquant la politique anti-cannibalisation.
+    \item Contraintes de diversité géographique par ville (nombre maximum de suggestions par agglomération).
+\end{itemize}
+
+\subsection{Sélection par K-NN et Similarité Cosinus}
+
+La sélection finale des meilleurs candidats s'effectue par un algorithme K-Nearest Neighbors utilisant la \textbf{Similarité Cosinus} comme métrique :
+\begin{equation}
+\text{Sim}(C_j, B_{target}) = \cos(\theta) = \frac{C_j \cdot B_{target}}{||C_j||_2 \cdot ||B_{target}||_2}
+\end{equation}
+où $B_{target}$ est le centroïde du cluster ``High Performer'' identifié dans l'UC1.
+
+Le choix de la Similarité Cosinus plutôt que la distance Euclidienne est motivé par la \textit{malédiction de la dimensionnalité}. Dans un espace à 6 dimensions, la distance Euclidienne est sensible à la magnitude : une grande zone avec 100 cafés et 50 banques apparaîtrait très éloignée d'une petite zone avec 10 cafés et 5 banques. La Similarité Cosinus mesure l'\textit{angle} entre les vecteurs, identifiant correctement que ces deux zones partagent le même profil commercial (ratio 2:1), indépendamment de leur taille brute.
+
+Les $K=20$ candidats présentant la similarité la plus élevée constituent la recommandation finale pour l'ouverture de nouvelles succursales.
+
+%=============================================================================%
+\section{Architecture de Déploiement Logiciel}
+%=============================================================================%
+
+L'ensemble de l'intelligence algorithmique (UC1 et UC2) est encapsulé dans une application web monolithique de \textbf{3\,000+ lignes} de code Python, développée avec le framework \texttt{Streamlit}. Ce choix technologique, devenu le standard de l'industrie pour les plateformes d'Internal Tooling en Machine Learning, permet d'exécuter la logique métier (pandas, scikit-learn, XGBoost) et le rendu de l'interface (React) au sein de la même boucle d'exécution.
+
+\subsection{Architecture de l'Interface : Organisation en Onglets}
+
+Le dashboard est structuré en \textbf{11 onglets} thématiques, chacun dédié à une fonctionnalité spécifique :
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|c|l|l|}
+\hline
+\textbf{Tab} & \textbf{Nom} & \textbf{Fonction principale} \\ \hline
+1 & Map & Carte interactive Folium avec code couleur par action \\ \hline
+2 & Rankings & Classement des agences par score composite \\ \hline
+3 & ML Clusters & Visualisation PCA des 5 profils K-Means \\ \hline
+4 & Mergers & Détection des paires cannibales (cKDTree) \\ \hline
+5 & Cities & Analyse macroscopique ville par ville \\ \hline
+6 & Deep Dive & Fiche 360° d'audit d'une agence individuelle \\ \hline
+7 & Data & Vue tabulaire brute des datasets \\ \hline
+8 & Site Selection & Benchmarking statique des candidats \\ \hline
+9 & Run Site Selection & Moteur interactif avec sliders et contraintes \\ \hline
+10 & Network Optimization & Matrice BCG spatiale et actions stratégiques \\ \hline
+11 & Data Enrichment & Scraping live et pipeline de nettoyage \\ \hline
+\end{tabular}
+\caption{Architecture des 11 onglets du dashboard Branch Intelligence.}
+\label{tab:dashboard_tabs}
+\end{table}
+
+\subsection{Gestion de la Performance : Cache et État}
+
+Le chargement du dataset principal ($\sim$230 Ko, 1\,198 lignes $\times$ 31 colonnes) est optimisé via le décorateur \texttt{@st.cache\_data}. Ce mécanisme de memoization assure que le fichier CSV n'est parsé qu'une seule fois au démarrage du serveur, les appels suivants retournant directement la copie en mémoire vive. L'état inter-interactions est géré via \texttt{st.session\_state}, un dictionnaire persistant entre les re-rendus de Streamlit.
+
+\subsection{Module d'Enrichissement Asynchrone (Tab 11)}
+
+Le défi architectural principal réside dans l'intégration du scraper Google Maps au sein du dashboard sans bloquer le thread principal de Streamlit. L'architecture implémentée repose sur un paradigme producteur-consommateur :
+
+\begin{enumerate}
+    \item \textbf{Producteur (Processus Enfant)} : Le scraper est lancé via \texttt{subprocess.Popen} avec une variable d'environnement \texttt{PYTHONIOENCODING=utf-8} injectée pour assurer la compatibilité des caractères Unicode dans le pipe Windows.
+    \item \textbf{Tampon (Thread d'Arrière-Plan)} : Un \texttt{threading.Thread} daemon lit continuellement le flux \texttt{stdout} du processus enfant et pousse chaque ligne dans une \texttt{queue.Queue} thread-safe.
+    \item \textbf{Consommateur (Boucle UI)} : La boucle principale de Streamlit vide la queue toutes les 500ms, nettoie les codes ANSI (colorama) via une expression régulière, et met à jour un composant \texttt{st.empty()} pour un rendu temps réel.
+\end{enumerate}
+
+Cette architecture producteur-consommateur permet à l'utilisateur d'observer le scraping en direct, puis de déclencher séquentiellement \texttt{clean.py} et \texttt{cleanall.py} pour intégrer les nouvelles données au pipeline d'analyse, créant ainsi une plateforme \textit{End-to-End} totalement auto-suffisante.
+"""
+
+with open("ch4_part2.tex", "w", encoding="utf-8") as f:
+    f.write(PART2)
+print("Part 2 written successfully.")

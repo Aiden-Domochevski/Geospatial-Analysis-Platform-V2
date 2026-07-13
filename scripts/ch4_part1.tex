@@ -1,0 +1,176 @@
+
+\chapter{Implémentation Technique, Modélisation Appliquée et Benchmarking}
+
+Ce quatrième chapitre constitue le cœur technique du projet \textit{Branch Intelligence}. Il détaille l'ensemble du processus d'implémentation, depuis l'acquisition et le nettoyage des données géospatiales brutes jusqu'à leur exploitation par des algorithmes d'apprentissage automatique au sein d'une interface d'aide à la décision. Chaque choix technologique est justifié par des résultats empiriques obtenus sur nos données réelles, composées de \textbf{1\,198 agences bancaires} décrites par \textbf{6 caractéristiques spatiales} principales.
+
+Le chapitre est organisé autour de deux cas d'usage stratégiques qui structurent l'ensemble de l'architecture logicielle et algorithmique.
+
+\section{Architecture Globale et Définition des Cas d'Usage}
+
+L'architecture du système repose sur deux cas d'usage (UC) complémentaires mais distincts dans leur finalité métier :
+
+\begin{itemize}
+    \item \textbf{Cas d'Usage 1 (UC1) : Évaluation et Optimisation du Réseau Existant.} Ce volet se concentre sur l'audit des agences actuellement en opération. L'objectif est d'utiliser le Machine Learning pour isoler la qualité géographique intrinsèque d'un emplacement de la performance managériale de l'équipe, aboutissant à une Matrice BCG de restructuration du réseau. Il intègre également la détection spatiale des cannibalismes inter-agences pour suggérer des fusions d'actifs.
+    \item \textbf{Cas d'Usage 2 (UC2) : Découverte et Sélection de Nouveaux Sites.} Ce volet est prospectif. Il s'agit de mailler l'ensemble du territoire marocain pour identifier, via des algorithmes K-NN et de similarité vectorielle, les zones vierges présentant un potentiel commercial similaire aux agences les plus performantes du réseau actuel.
+\end{itemize}
+
+La figure~\ref{fig:architecture_globale} illustre l'architecture fonctionnelle globale reliant ces deux cas d'usage à travers un tronc commun de données.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/composite_score_dist.png}
+    \caption{Distribution du Composite Score sur l'ensemble des 1\,198 agences du réseau. La moyenne s'établit à 0.490 et la médiane à 0.576, révélant une asymétrie gauche caractéristique d'un réseau polarisé entre zones denses et zones rurales.}
+    \label{fig:architecture_globale}
+\end{figure}
+
+%=============================================================================%
+\section{Orchestration et Ingénierie des Données (Tronc Commun)}
+%=============================================================================%
+
+L'intelligence spatiale repose sur la granularité et la fraîcheur des données Points of Interest (POI). Le processus d'ingénierie se divise en trois phases critiques formant un pipeline ETL (Extract-Transform-Load) complet.
+
+\subsection{Phase d'Extraction : Collecte Multi-Sources}
+
+La couverture exhaustive du territoire marocain nécessite l'agrégation de trois sources de données hétérogènes, chacune apportant une couche d'information complémentaire :
+
+\begin{enumerate}
+    \item \textbf{Geofabrik (Données Statiques Lourdes) :} Extraction de fichiers \texttt{.osm.pbf} régionaux contenant les infrastructures gouvernementales, hospitalières et éducatives. Ces données, mises à jour trimestriellement, constituent la couche structurelle stable de notre modèle spatial.
+    \item \textbf{OpenStreetMap via Overture Maps (Données Semi-Statiques) :} Utilisation de l'outil en ligne de commande \texttt{overturemaps} pour extraire des données au format \texttt{geoparquet} dans un cadre englobant (Bounding Box) couvrant le Maroc : $[-13.2, 27.6, -0.9, 35.9]$. Ces données fournissent les réseaux routiers, les zones résidentielles et les points de transport.
+    \item \textbf{Google Maps (Scraping Dynamique) :} Pour les commerces à forte volatilité temporelle (cafés, restaurants, nouvelles franchises, agences concurrentes), les bases open-source sont systématiquement obsolètes. Nous avons donc développé un scraper personnalisé.
+\end{enumerate}
+
+\subsection{Le Scraper Google Maps : Architecture et Tolérance aux Pannes}
+
+Le scraper (\texttt{maps.py}) constitue l'innovation technique majeure du pipeline de données. Son architecture repose sur trois piliers :
+
+\textbf{1. Heuristique de Quadrillage Spatial.} Le territoire marocain est divisé en une grille régulière de pas $\Delta = 0.3$ degrés en latitude et longitude. Pour chaque cellule $(lat_i, lon_j)$ et pour chacun des 30 mots-clés de recherche (``restaurant'', ``hospital'', ``bank'', etc.), le script génère une URL de recherche Google Maps de la forme :
+\begin{center}
+\texttt{https://www.google.com/maps/search/\{query\}/@\{lat\},\{lon\},13z}
+\end{center}
+
+\textbf{2. Interaction Dynamique via Selenium WebDriver.} Google Maps étant une Single Page Application (SPA) entièrement rendue côté client par JavaScript, les méthodes classiques de scraping HTTP (\texttt{requests}, \texttt{BeautifulSoup}) sont inopérantes. Le script instancie un navigateur Chrome en mode \textit{headless} via \texttt{Selenium}, puis exécute des injections JavaScript directes :
+\begin{verbatim}
+    arguments[0].scrollTop += 800
+\end{verbatim}
+Cette instruction force le défilement du panneau de résultats (\texttt{div[@role="feed"]}), déclenchant les requêtes AJAX asynchrones qui chargent les résultats suivants.
+
+\textbf{3. Système de Checkpoints (Tolérance aux Pannes).} L'opération de scraping national prenant plusieurs heures, un mécanisme de reprise est indispensable. Chaque triplet $(lat, lon, query)$ réussi est enregistré dans le fichier \texttt{scraper\_checkpoint.txt}. Au redémarrage, ces clés sont chargées dans une structure de type \texttt{set} en Python, offrant une complexité de recherche en $O(1)$ et permettant au script de reprendre exactement là où il s'était interrompu. Les données brutes sont sauvegardées par lots de 50 enregistrements pour minimiser la perte en cas d'interruption brutale.
+
+\subsection{Phase de Transformation : Nettoyage et Fusion (\texttt{cleanall.py})}
+
+L'unification de ces trois sources disparates pose des défis stricts de standardisation que le pipeline résout en trois étapes :
+
+\begin{enumerate}
+    \item \textbf{Résolution des Encodages :} Les données issues du web contiennent fréquemment des octets corrompus (ex: \texttt{0xe9} pour le caractère ``é''). Le pipeline force la lecture via l'encodage \texttt{latin1} puis effectue la sauvegarde finale en \texttt{UTF-8} universel, garantissant la compatibilité avec les bibliothèques d'analyse.
+    \item \textbf{Normalisation des Schémas :} Chaque source utilise des noms de colonnes différents. Le script standardise les champs vers un schéma commun : \texttt{name}, \texttt{category}, \texttt{latitude}, \texttt{longitude}.
+    \item \textbf{Dédoublonnage Géométrique :} Un même commerce peut exister dans la base OSM et Google Maps sous des noms différents (``Pharmacie Centrale'' vs ``Pharm. Centrale''). Le dédoublonnage textuel étant inopérant, nous utilisons la vérité terrain géométrique via \texttt{drop\_duplicates(subset=['latitude','longitude'], keep='first')}, garantissant l'unicité stricte des coordonnées GPS.
+\end{enumerate}
+
+Le résultat final est un fichier unifié \texttt{merged\_data\_clean.csv} constituant la base de référence pour toute l'analyse spatiale.
+
+\subsection{Phase de Chargement : Ingénierie des Caractéristiques Spatiales}
+
+Pour transformer un simple point GPS en vecteur de caractéristiques exploitable par nos algorithmes, nous appliquons une \textbf{agrégation radiale}. Pour chaque agence (UC1) ou candidat (UC2), l'algorithme compte les densités de POI à l'intérieur d'isochrones circulaires de rayons 500m, 1km et 2km, générant un vecteur $X_i \in \mathbb{R}^6$ composé des six scores suivants :
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|p{7cm}|}
+\hline
+\textbf{Variable} & \textbf{Type} & \textbf{Description} \\ \hline
+\texttt{score\_commercial} & Attractivité & Densité pondérée des commerces (restaurants, malls, marchés) dans un rayon de 1km \\ \hline
+\texttt{score\_office} & Attractivité & Densité des bureaux et administrations à 1km \\ \hline
+\texttt{score\_residential} & Attractivité & Densité des zones résidentielles à 1km \\ \hline
+\texttt{score\_accessibility} & Attractivité & Proximité des transports en commun (gares, arrêts de bus) à 500m \\ \hline
+\texttt{score\_competition} & Risque & Nombre de banques concurrentes dans un rayon de 1km \\ \hline
+\texttt{score\_cannibalization} & Risque & Nombre d'agences Attijariwafa Bank dans un rayon de 2km \\ \hline
+\end{tabular}
+\caption{Description des 6 caractéristiques spatiales constituant le vecteur d'entrée des modèles.}
+\label{tab:features}
+\end{table}
+
+Ces six scores sont ensuite combinés en un \textbf{Composite Score} global via une combinaison linéaire pondérée :
+\begin{equation}
+S_{composite} = \alpha \cdot S_{comm} + \beta \cdot S_{off} + \gamma \cdot S_{res} + \delta \cdot S_{acc} - \epsilon \cdot S_{comp} - \zeta \cdot S_{can}
+\label{eq:composite}
+\end{equation}
+où les coefficients $(\alpha, \beta, \gamma, \delta, \epsilon, \zeta)$ reflètent l'importance relative de chaque dimension pour l'activité bancaire. La soustraction des scores de compétition et de cannibalisation pénalise les zones saturées.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/correlation_heatmap.png}
+    \caption{Matrice de corrélation de Pearson entre les 6 variables spatiales, le score composite et le revenu mensuel. On observe que le score commercial présente la corrélation la plus forte avec le revenu réel.}
+    \label{fig:correlation}
+\end{figure}
+
+%=============================================================================%
+\section{Cas d'Usage 1 : Évaluation et Optimisation du Réseau Existant}
+%=============================================================================%
+
+Ce premier cas d'usage vise à auditer le réseau bancaire actuel en combinant apprentissage non supervisé (segmentation) et supervisé (prédiction des revenus), aboutissant à un outil d'aide à la décision stratégique.
+
+\subsection{Apprentissage Non Supervisé : Segmentation par K-Means}
+
+\subsubsection{Méthodologie et Prétraitement}
+
+La première étape de l'évaluation consiste à identifier des profils d'agences homogènes. Comparer naïvement une agence de centre d'affaires à une agence rurale serait une erreur méthodologique fondamentale.
+
+Préalablement au clustering, la matrice des scores $X \in \mathbb{R}^{1198 \times 6}$ subit une transformation Z-Score via \texttt{StandardScaler} :
+\begin{equation}
+z_{ij} = \frac{x_{ij} - \bar{x}_j}{\sigma_j}
+\end{equation}
+Cette normalisation est indispensable car la distance Euclidienne utilisée par K-Means est sensible aux échelles : sans standardisation, les variables à forte variance numérique domineraient le calcul des centroïdes.
+
+L'algorithme K-Means est exécuté avec $K=5$ clusters et $n\_init=10$ initialisations aléatoires pour éviter la convergence vers un minimum local de la fonction objectif de Lloyd.
+
+\subsubsection{Résultats du Clustering}
+
+L'algorithme identifie cinq profils spatiaux distincts au sein du réseau. Le tableau~\ref{tab:clusters} résume les caractéristiques de chaque cluster :
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Profil (Cluster)} & \textbf{Nombre d'Agences} & \textbf{Score Composite Moyen} \\ \hline
+High Performer & 396 & 0.686 \\ \hline
+Commercial Hub & 294 & 0.614 \\ \hline
+Residential Anchor & 181 & 0.412 \\ \hline
+Underperformer & 119 & 0.311 \\ \hline
+At Risk / Redundant & 208 & 0.109 \\ \hline
+\end{tabular}
+\caption{Répartition des 1\,198 agences dans les 5 clusters K-Means.}
+\label{tab:clusters}
+\end{table}
+
+\subsubsection{Réduction de Dimensionnalité : Analyse en Composantes Principales}
+
+Pour visualiser la séparation des clusters dans un espace interprétable, nous appliquons une ACP (Analyse en Composantes Principales) qui projette l'espace $\mathbb{R}^6$ vers $\mathbb{R}^2$. Les deux premières composantes capturent respectivement \textbf{72.5\%} et \textbf{10.1\%} de la variance totale, soit un cumul de \textbf{82.6\%}, justifiant pleinement la projection bidimensionnelle.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/pca_clusters.png}
+    \caption{Projection PCA 2D des 5 clusters K-Means. PC1 (72.5\% de variance) sépare principalement les zones denses (droite) des zones rurales (gauche). PC2 (10.1\%) discrimine les profils commerciaux des profils résidentiels.}
+    \label{fig:pca_clusters}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/cluster_distribution.png}
+    \caption{À gauche : répartition du nombre d'agences par cluster. À droite : score composite moyen par cluster, confirmant la hiérarchie des profils.}
+    \label{fig:cluster_dist}
+\end{figure}
+
+\subsubsection{Profilage Multidimensionnel par Radar Charts}
+
+Pour comprendre la signature spatiale de chaque cluster, nous utilisons des diagrammes radar (Spider Charts) représentant la moyenne de chaque score pour chaque profil. Cette visualisation confirme que :
+\begin{itemize}
+    \item Les \textit{High Performers} se distinguent par des scores élevés sur toutes les dimensions d'attractivité.
+    \item Les \textit{Commercial Hubs} présentent une dominance marquée du score commercial mais un score résidentiel plus faible.
+    \item Les agences \textit{At Risk} combinent de faibles scores d'attractivité avec une cannibalisation élevée.
+\end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/cluster_radar.png}
+    \caption{Diagrammes radar des 5 profils d'agences. Chaque axe représente la valeur moyenne d'un des 6 scores spatiaux.}
+    \label{fig:cluster_radar}
+\end{figure}
