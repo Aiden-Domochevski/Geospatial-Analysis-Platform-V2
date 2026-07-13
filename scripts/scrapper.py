@@ -89,12 +89,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Paths ──────────────────────────────────────────────────
-SCRAPER_DIR   = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'google-maps-checkpoints'))
+SCRAPER_DIR   = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'google-maps-checkpoints'))
 MAPS_SCRIPT   = os.path.join(SCRAPER_DIR, 'maps.py')
 CLEAN_SCRIPT  = os.path.join(SCRAPER_DIR, 'clean.py')
 CHECKPOINT_F  = os.path.join(SCRAPER_DIR, 'scraper_checkpoint.txt')
 RAW_CSV       = os.path.join(SCRAPER_DIR, 'morocco_gmaps_businesses.csv')
-CLEANALL_SCRIPT = os.path.abspath(os.path.join(os.path.dirname(__file__), 'cleanall.py'))
+CLEANALL_SCRIPT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'allinone', 'cleanall.py'))
 
 # ── Prerequisite check ─────────────────────────────────────
 if not os.path.exists(MAPS_SCRIPT):
@@ -318,7 +318,7 @@ if st.button(" Run Clean & Merge Pipeline", type="primary", use_container_width=
 
     # Copy google_final.csv to allinone
     src_google = os.path.join(SCRAPER_DIR, 'google_final.csv')
-    dst_google = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'allinone', 'google_final.csv'))
+    dst_google = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'allinone', 'google_final.csv'))
     if os.path.exists(src_google):
         import shutil
         try:
