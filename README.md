@@ -2,7 +2,7 @@
 
 This repository contains the source code for the machine learning pipeline and the interactive Streamlit dashboard developed for the territorial intelligence and site selection project at Attijariwafa Bank.
 
-**Note:** For data privacy and security reasons, the datasets (`data/` folder), training notebooks, and the final project documentation (`rapport.tex`, diagrams, figures) have been explicitly excluded from this repository.
+**Note:** For data privacy and size constraints, the actual datasets have been excluded from this repository. You must download them separately via the provided Google Drive link. The `data/` directory structure itself is preserved for your convenience.
 
 ## Prerequisites
 
@@ -26,18 +26,10 @@ To run this project, you need:
    *(If `requirements.txt` is missing, manually install: `pip install streamlit pandas folium plotly scikit-learn xgboost scipy numpy`)*
 
 3. **Data Placement (Crucial Step):**
-   Since data is not included in this repository, you must recreate the data structure manually. Create the following folders in the root directory:
-   ```
-   data/
-   ├── inputs/
-   │   ├── branches_scored.csv
-   │   ├── branch_performance.csv
-   │   ├── density.csv
-   │   └── merged_data_clean.csv
-   └── outputs/
-       └── benchmarking_results.json
-   ```
-   Place the corresponding proprietary CSV files provided by the data engineering team into the `data/inputs/` directory.
+   The datasets are not stored directly in this GitHub repository due to file size and privacy constraints. The required folder structure (`data/inputs/` and `data/outputs/`) is already created for you in the repository.
+   
+   - **Download the Data:** Get the required files from this [Google Drive Link](https://drive.google.com/drive/folders/1IeePZw1w69xwTbbwtLAFhFw98pY6EcfH?usp=sharing).
+   - **Extract/Move the Data:** Place the downloaded files directly into the pre-existing `data/` folder exactly as they are arranged in the Drive. For example, `merged_data_clean.csv` must go inside `data/inputs/`.
 
 4. **Run the Dashboard:**
    Once the data is in place, you can launch the dashboard locally:
