@@ -2,7 +2,7 @@
 
 This repository contains the source code for the machine learning pipeline and the interactive Streamlit dashboard developed for the territorial intelligence and site selection project at Attijariwafa Bank.
 
-**Note:** For data privacy and size constraints, the actual datasets have been excluded from this repository. You must download them separately via the provided Google Drive link. The `data/` directory structure itself is preserved for your convenience.
+**Note:** For data privacy and size constraints, the actual datasets have been excluded from this repository. You must download them separately via the provided Google Drive link below. The `data/` directory structure itself is preserved for your convenience.
 
 ## Prerequisites
 
@@ -14,16 +14,14 @@ To run this project, you need:
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository_url>
-   cd final_model
+   git clone https://github.com/Salaheddineahadaf/Geospatial-Analysis-Platform.git
+   cd Geospatial-Analysis-Platform
    ```
 
 2. **Install Dependencies:**
-   Install the required Python packages (Streamlit, Pandas, Folium, Plotly, Scikit-Learn, XGBoost, etc.).
    ```bash
    pip install -r requirements.txt
    ```
-   *(If `requirements.txt` is missing, manually install: `pip install streamlit pandas folium plotly scikit-learn xgboost scipy numpy`)*
 
 3. **Data Placement (Crucial Step):**
    The datasets are not stored directly in this GitHub repository due to file size and privacy constraints. The required folder structure (`data/inputs/` and `data/outputs/`) is already created for you in the repository.
@@ -36,8 +34,19 @@ To run this project, you need:
    ```bash
    streamlit run app.py
    ```
+   The dashboard should open automatically in your browser.
 
-## Project Structure (Version Controlled)
-- `app.py`: The core Streamlit application containing the dashboard interface and geospatial visualization logic.
-- `scripts/`: Contains Python scripts for benchmarking, data cleaning, and model evaluation (`run_benchmarks.py`, etc.).
-- `.gitignore`: Secures the repository by preventing proprietary data and heavy documentation from being uploaded.
+## Project Structure
+
+```
+Geospatial-Analysis-Platform/
+├── app.py                  # Main Streamlit dashboard application
+├── logo.png                # Dashboard logo used in the UI
+├── requirements.txt        # Python dependencies
+├── data/
+│   ├── inputs/             # Place the downloaded CSV files here
+│   └── outputs/            # Generated output files (created at runtime)
+├── scripts/                # Python scripts for benchmarking, data cleaning, and model evaluation
+├── notebooks/              # Jupyter notebook for model benchmarking
+└── documentation/          # Project report (rapport.tex/pdf), presentation, UML diagrams, and figures
+```
