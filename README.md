@@ -8,6 +8,7 @@ This repository contains the source code for the machine learning pipeline and t
 
 To run this project, you need:
 - **Python 3.14.3**: You can download this specific version from [here](https://www.npackd.org/p/org.python.Python64/3.14.3). This exact version is recommended to ensure full compatibility with the generated dependencies.
+- **Google Chrome** (required only if you want to use the Google Maps scraper)
 - A virtual environment (recommended)
 
 ## Setup Instructions
@@ -36,6 +37,24 @@ To run this project, you need:
    ```
    The dashboard should open automatically in your browser.
 
+## Running the Standalone Scraper
+
+If you only need to run the Google Maps scraper without launching the full dashboard, you can use the standalone version located in the `scripts/` folder:
+
+```bash
+streamlit run scripts/scrapper.py
+```
+
+This standalone app provides the exact same Data Enrichment interface as the one inside the main dashboard, including:
+- Google Maps scraping with resume/fresh-start modes
+- Real-time terminal output streaming
+- The Clean & Merge pipeline (Step A: clean raw CSV, Step B: merge all data sources and deduplicate)
+
+**Additional scraper dependencies:**
+```bash
+pip install selenium webdriver-manager colorama
+```
+
 ## Project Structure
 
 ```
@@ -46,7 +65,6 @@ Geospatial-Analysis-Platform/
 ├── data/
 │   ├── inputs/             # Place the downloaded CSV files here
 │   └── outputs/            # Generated output files (created at runtime)
-├── scripts/                # Python scripts for benchmarking, data cleaning, and model evaluation
-├── notebooks/              # Jupyter notebook for model benchmarking
-└── documentation/          # Project report (rapport.tex/pdf), presentation, UML diagrams, and figures
+└── scripts/
+    └── scrapper.py         # Standalone Google Maps scraper (same UI as the dashboard tab)
 ```
