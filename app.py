@@ -1,14 +1,3 @@
-"""
-╔══════════════════════════════════════════════════════════════════╗
-║   ATTIJARIWAFA BANK — BRANCH INTELLIGENCE DASHBOARD             ║
-║                                                                  ║
-║   pip install streamlit folium streamlit-folium plotly           ║
-║               pandas numpy scikit-learn scipy                    ║
-║                                                                  ║
-║   streamlit run dashboard.py                                     ║
-╚══════════════════════════════════════════════════════════════════╝
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
