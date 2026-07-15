@@ -46,10 +46,10 @@ To run this project, you need:
 
 ## Running the Standalone Scraper
 
-If you only need to run the Google Maps scraper without launching the full dashboard, you can use the standalone version located in the `scripts/` folder:
+If you only need to run the Google Maps scraper without launching the full dashboard, you can use the standalone version located in the `scrapping_scripts/` folder:
 
 ```bash
-streamlit run scripts/scrapper.py
+streamlit run scrapping_scripts/scrapper.py
 ```
 
 This standalone app provides the exact same Data Enrichment interface as the one inside the main dashboard, including:
@@ -64,9 +64,11 @@ Geospatial-Analysis-Platform/
 ├── app.py                  # Main Streamlit dashboard application
 ├── logo.png                # Dashboard logo used in the UI
 ├── requirements.txt        # Python dependencies
+├── benchmarks/             # Scripts for running model benchmarks and comparisons
+├── cleaning/               # Scripts for merging, deduplicating, and cleaning raw data
 ├── data/
 │   ├── inputs/             # Place the downloaded CSV files here
 │   └── outputs/            # Generated output files (created at runtime)
-└── scripts/
+└── scrapping_scripts/      # Scripts for data extraction (Google Maps, OSM, Geofabrik, etc.)
     └── scrapper.py         # Standalone Google Maps scraper (same UI as the dashboard tab)
 ```
